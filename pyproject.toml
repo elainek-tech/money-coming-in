@@ -1,0 +1,27 @@
+[project]
+name = "money-coming-in"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi==0.165.0",
+    "google-cloud-firestore==2.34.1",
+    "google-cloud-pubsub==2.44.0",
+    "google-genai==3.6.1",
+    "httpx==0.28.1",
+    "pydantic==2.14.4",
+    "uvicorn==0.54.0",
+]
+
+[project.scripts]
+money-coming-in = "money_coming_in:main"
+
+[build-system]
+requires = ["uv_build>=0.12.9,<0.13.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "pytest==9.2.0",
+]

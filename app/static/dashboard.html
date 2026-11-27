@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Money Coming In</title>
+<style>
+  :root { color-scheme: light dark; --bg:#f6f7f9; --card:#fff; --ink:#14181f; --quiet:#5b6573; --line:#dfe3e8;
+          --hot:#0b7a3b; --recycled:#7a3bd1; --qual:#0b7a3b; --dormant:#8a6d00; --active:#5b6573; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#12151a; --card:#1b2028; --ink:#eef1f5; --quiet:#a3acb9; --line:#2c333d;
+          --hot:#4cd68a; --recycled:#b98cff; --qual:#4cd68a; --dormant:#e0b93b; --active:#a3acb9; } }
+  * { box-sizing: border-box; }
+  body { margin:0; font:16px/1.45 system-ui, sans-serif; background:var(--bg); color:var(--ink); }
+  header { padding:20px 24px 8px; display:flex; align-items:baseline; gap:16px; flex-wrap:wrap; }
+  h1 { margin:0; font-size:24px; }
+  #state { color:var(--quiet); font-size:14px; }
+  main { display:grid; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); gap:16px; padding:16px 24px 40px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px; }
+  .card.qualified, .card.recycled { border-width:2px; }
+  .card.qualified { border-color:var(--qual); } .card.recycled { border-color:var(--recycled); }
+  .top { display:flex; justify-content:space-between; gap:8px; align-items:center; margin-bottom:8px; }
+  .who { font-weight:600; overflow-wrap:anywhere; }
+  .badge { font-size:13px; font-weight:600; padding:2px 10px; border-radius:999px; border:1px solid currentColor; white-space:nowrap; }
+  .badge.qualified { color:var(--qual); } .badge.recycled { color:var(--recycled); }
+  .badge.dormant { color:var(--dormant); } .badge.active { color:var(--active); }
+  .summary { margin:4px 0 12px; }
+  dl { display:grid; grid-template-columns:auto 1fr; gap:4px 12px; margin:0; font-size:14px; }
+  dt { color:var(--quiet); } dd { margin:0; }
+  .change { margin-top:12px; font-size:14px; color:var(--recycled); }
+  .evidence { margin-top:12px; font-size:13px; color:var(--quiet); }
+  .empty { color:var(--quiet); padding:24px; }
+</style>
+</head>
+<body>
+<header><h1>Money Coming In</h1><span id="state">connecting…</span></header>
+<main id="grid"></main>
+<script>
+  // Everything below uses textContent, never innerHTML: attendees' messages are untrusted text.
+  const grid = document.getElementById('grid');
+  const state = document.getElementById('state');
+  const rank = { recycled: 0, qualified: 1, active: 2, dormant: 3 };
+
+  function el(tag, cls, text) {
+    const node = document.createElement(tag);
+    if (cls) node.className = cls;
+    if (text !== undefined) node.textContent = text;
+    return node;
+  }
+  function row(dl, label, value) {
+    dl.append(el('dt', '', label), el('dd', '', value));
+  }
+  function money(e) {
+    return e.budget_amount == null ? 'not stated' : `${e.budget_currency || ''} ${Number(e.budget_amount).toLocaleString()}`.trim();
+  }
+  function describe(change) {
+    return Object.entries(change || {}).map(([field, v]) => `${field.replace(/_/g, ' ')}: ${v.from ?? 'none'} → ${v.to ?? 'none'}`).join(' · ');
+  }
+  function card(lead) {
+    const e = lead.extraction || {};
+    const c = el('article', `card ${lead.status}`);
+    const top = el('div', 'top');
+    // The server already removed sender ids and names; it sends a safe label.
+    const who = lead.label || 'customer';
+    top.append(el('span', 'who', `${who} · ${lead.channel}`),
+               el('span', `badge ${lead.status}`, lead.status === 'recycled' ? 'Recycled' : lead.status));
+    c.append(top, el('p', 'summary', e.summary || 'Waiting for analysis…'));
+    const dl = el('dl');
+    row(dl, 'Intent', e.intent ?? '-');
+    row(dl, 'Urgency', e.urgency_score != null ? `${e.urgency_score} / 5` : '-');
+    row(dl, 'Budget', money(e));
+    row(dl, 'Decision maker', e.decision_maker ?? '-');
+    if (e.objection) row(dl, 'Objection', e.objection);
+    row(dl, 'Confidence', e.confidence != null ? Number(e.confidence).toFixed(2) : '-');
+    c.append(dl);
+    const changed = describe(lead.last_event && lead.last_event.changes);
+    if (lead.status === 'recycled' && changed) c.append(el('div', 'change', 'What changed: ' + changed));
+    if (e.evidence && e.evidence.length) c.append(el('div', 'evidence', e.evidence.map(q => `“${q}”`).join('  ')));
+    return c;
+  }
+  function render(leads) {
+    leads.sort((a, b) => (rank[a.status] ?? 9) - (rank[b.status] ?? 9)
+      || ((b.extraction || {}).urgency_score || 0) - ((a.extraction || {}).urgency_score || 0));
+    grid.replaceChildren(...(leads.length ? leads.map(card) : [el('p', 'empty', 'No leads yet. Send a message.')]));
+  }
+  const source = new EventSource('/stream');
+  source.onopen = () => { state.textContent = 'live'; };
+  source.onerror = () => { state.textContent = 'reconnecting…'; };
+  source.onmessage = (event) => render(JSON.parse(event.data));
+</script>
+</body>
+</html>

@@ -1,0 +1,62 @@
+{
+  "type": "object",
+  "properties": {
+    "intent": {
+      "type": "string",
+      "description": "What the sender wants. 'support' is an existing customer with a problem.",
+      "enum": ["buy", "enquire", "support", "spam", "other"]
+    },
+    "budget_amount": {
+      "type": "number",
+      "nullable": true,
+      "description": "Budget as a number, only if the customer stated one. null if not stated. Never guess."
+    },
+    "budget_currency": {
+      "type": "string",
+      "nullable": true,
+      "description": "Currency code or symbol for the stated budget (for example MYR for RM). null if no budget."
+    },
+    "decision_maker": {
+      "type": "string",
+      "description": "Can the sender decide? 'no' if gathering quotes for someone else. 'unknown' if unclear.",
+      "enum": ["yes", "no", "unknown"]
+    },
+    "urgency_score": {
+      "type": "integer",
+      "description": "1 no timeline, 2 vague or someday, 3 within a few months, 4 a stated date or within weeks, 5 wants contact now.",
+      "minimum": 1,
+      "maximum": 5
+    },
+    "objection": {
+      "type": "string",
+      "nullable": true,
+      "description": "Why they hesitated, in a few words (for example 'budget too low'). null if none."
+    },
+    "summary": {
+      "type": "string",
+      "description": "One sentence in English a salesperson can read before replying."
+    },
+    "evidence": {
+      "type": "array",
+      "description": "Up to 3 short quotes copied from the conversation that justify the scores.",
+      "items": {
+        "type": "string"
+      },
+      "maxItems": 3
+    },
+    "confidence": {
+      "type": "number",
+      "description": "How sure you are, from 0 to 1.",
+      "minimum": 0,
+      "maximum": 1
+    }
+  },
+  "required": [
+    "intent",
+    "decision_maker",
+    "urgency_score",
+    "summary",
+    "evidence",
+    "confidence"
+  ]
+}
